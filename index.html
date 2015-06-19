@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Exercício Aula 10 by gcmmoreira</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Exercício Aula 10</h1>
+      <h2 class="project-tagline">Esta página foi criada para exibir os resultados relativos ao exercício da aula 10. Os comandos utlizados no RStudio bem como os resultados obtidos, serão apresentados a seguir.</h2>
+      <a href="https://github.com/gcmmoreira/exercicio_aula10" class="btn">View on GitHub</a>
+      <a href="https://github.com/gcmmoreira/exercicio_aula10/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/gcmmoreira/exercicio_aula10/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p><strong>ENUNCIADO DA QUESTÃO</strong></p>
+
+<p>1) Considere o conjunto de dados de Mimulus, já usado em aulas anteriores. Usando o mapa que você construiu anteriormente com o OneMap, faça mapeamento por intervalo e por intervalo composto para localizar QTL’s para uma das características presentes no conjunto de dados (escolha a que julgar mais interessante).</p>
+
+<ul>
+<li>Determine o limiar para rejeitar H0 e apresente os resultados de forma gráfica e em tabelas de forma semelhante aos artigos publicados na área.</li>
+<li>Use o software R/qtl, verificando no tutorial do OneMap como exportar o mapa construído para o formato do R/qtl. Use o Fórum para resolver suas dúvidas.</li>
+<li>O exercício pode ser feito em grupo, pela mesma equipe que fez o mapa genético.</li>
+<li>Apresente os resultados em um arquivo html, da mesma forma que para o mapa de Mimulus.</li>
+</ul>
+
+<p>Seguindo a orientação do enunciado da questão, o exercício foi elaborado em parceria com a aluna Thaís Fernanda Godoy.
+A seguir, serão apresentados os comandos utilizados no RStudio e posteriormente, os resultados obtidos (comentados).</p>
+
+<p><em><strong>COMANDOS UTILIZADOS NA ANÁLISE DOS DADOS (MIMULUS)</strong></em></p>
+
+<pre><code>library(qtl)
+
+arquivo&lt;-read.cross("mm",dir="C:\\Users\\Usuario\\Desktop\\BIOMETRIA",file="m_feb06.raw",mapfile="mapa_onemap_total.map")
+
+# Por intervalo
+arquivo&lt;-calc.genoprob(arquivo, step=1)
+
+out.em&lt;-scanone(arquivo)
+
+operm &lt;- scanone(arquivo, method="hk", n.perm=1000)
+summary(operm)
+plot(operm, col="white")
+abline(v=3.86, col="red", lty=3, lwd=3)
+
+plot(out.em, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14), ylab="LOD score", xlab="Chromosome",
+     ylim=c(0,5))
+add.threshold(out.em, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14), perms=operm, alpha=0.05, col="blue", lty=3)
+
+arquivo&lt;-sim.geno(arquivo, step=1)
+effectscan(arquivo, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14), ylab="Effect", xlab="Chromosome")
+
+out.hk &lt;- scanone(arquivo, method="hk")
+plot(out.em, out.hk, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14), col=c("blue","red"), ylab="LOD score")
+
+
+plot(out.hk - out.em, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14), ylim=c(-0.5, 1.0),ylab=expression(LOD[HK] - LOD[EM]))
+abline(h=0, lty=3)
+
+#Rodar essa parte
+LOD&lt;-scanone(arquivo, chr=c(7))
+LOD
+
+efeitos&lt;-effectscan(arquivo, chr=c(7))
+efeitos
+
+end&lt;-data.frame(LOD, efeitos)
+
+# Por intervalo composto
+
+arquivo&lt;-calc.genoprob(arquivo,step=1,error.prob=0.001)
+out&lt;-scanone(arquivo)
+
+#Identificação do marcador próximo
+
+mar &lt;- find.marker(arquivo , 7, 30) #está correto o Lod
+
+g &lt;- pull.geno(arquivo)[,mar]
+sum(is.na(g))
+
+#Imputando os dados faltantes
+g &lt;- pull.geno(fill.geno(arquivo))[,mar]
+sum(is.na(g))
+
+# F2 matriz
+
+g &lt;- cbind(as.numeric(g==1), as.numeric(g==2))
+
+out.ag &lt;- scanone(arquivo, addcovar=g)
+
+plot(out, out.ag, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14),col=c("blue", "red"), ylab="LOD score")
+add.threshold(out.ag, perms=operm, alpha=0.05, col="blue",lty=3.76)
+
+strat &lt;- (ntyped(arquivo) &gt; 100)
+operm.ag &lt;- scanone(arquivo, addcovar=g, chr=-7,perm.strata=strat, n.perm=100)
+
+summary(operm.ag, alpha=c(0.2, 0.05))
+
+#
+summary(out.ag, perms=operm.ag, alpha=0.2, pvalues=TRUE)
+#
+out.ig &lt;- scanone(arquivo, addcovar=g, intcovar=g)
+#
+plot(out.ig - out.ag, chr=c(1,2,3,4,5,6,7,8,9,10,11,12,13,14),ylab="interaction LOD score")
+add.threshold(out.ag, perms=operm, alpha=0.05, col="blue",lty=3)
+#
+
+out.cim.20 &lt;- cim(arquivo, n.marcovar=3, window=20)
+out.cim.40 &lt;- cim(arquivo, n.marcovar=3, window=40)
+out.cim.inf &lt;- cim(arquivo, n.marcovar=3, window=Inf)
+#
+chr &lt;- c(6,7,8,10,11)#
+par(mfrow=c(3,1))
+plot(out, out.cim.20, chr=chr, ylab="LOD score",col=c("blue", "red"), main="window = 20 cM")
+add.cim.covar(out.cim.20, chr=chr, col="green")
+
+plot(out, out.cim.40, chr=chr, ylab="LOD score",col=c("blue", "red"), main="window = 40 cM")
+add.cim.covar(out.cim.40, chr=chr, col="green")
+
+plot(out, out.cim.inf, chr=chr, ylab="LOD score",col=c("blue", "red"), main="window = Inf")
+add.cim.covar(out.cim.inf, chr=chr, col="green")
+
+</code></pre>
+
+<p><strong>RESULTADOS</strong></p>
+
+<p>Os resultados serão apresentados em ordem e comentados. </p>
+
+<p><strong>01) MAPEAMENTO POR INTERVALO (PADRÃO)</strong></p>
+
+<p>a) Determinação do limiar do LOD <em>score</em>
+Como visto em aulas anteriores da disciplina de Biometria de Marcadores Genéticos, a análise de permutação pode ser utilizada para determinação do limiar do LOD <em>score</em>. Sendo assim, permutações (100 vezes) com alfa de 20% e 5% foram testadas, de acordo com o método proposto por Haley-Knott. Com o alfa de 20% foi obtido um LOD <em>score</em> de 3,24 e com um alfa de 5% foi obtido um LOD <em>score</em> de 3,76. O gráfico com os valores obtidos nas permutações pode ser visualizado no gráfico a seguir. A linha vermelha indica o LOD <em>score</em> para o alfa de 5%.</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8244957/142f7c72-15fe-11e5-93ea-3dc6539c5e33.jpeg" alt="Gráfico 01 - Estimação do LOD score (limiar)"></p>
+
+<p>b) Com base nos grupos de ligações montados em exercício anterior, o efeito da aditividade e o efeito da dominância foram estimados e plotados, de todos os indivíduos entre os marcadores que flanqueiam os grupos. O gráfico pode ser observado a seguir:</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245223/b8bbea20-1601-11e5-8b74-12c3ad3c59cf.jpeg" alt="Gráfico 02 - Efeito da aditividade e dominância"></p>
+
+<p>c) Os valores dos LODs foram plotados por intervalo (seguindo o mapeamento por intervalo padrão) e o gráfico pode ser observado a seguir. Em azul, a linha pontilhada representa o valor do limiar do LOD <em>score</em>.</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245277/73577340-1602-11e5-9733-4b590a2de835.jpeg" alt="Gráfico 03 - LOD score mapeamento por intervalo"></p>
+
+<p>d) Os valores de LOD foram ainda comparados a partir daqueles estimados pelo mapeamento por intervalo padrão bem como, daqueles estimados pela regressão empregada de acordo com o método de Haley-Knott. Ver gráfico a seguir:</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245323/00acdde8-1603-11e5-8041-a25158b91a65.jpeg" alt="Gráfico 04 - Valores de LOD pelo mapeamento por intervalo e pelo método de Haley-Knott"></p>
+
+<p>e) Por fim, foi plotado ainda um gráfico apresentando a diferença entre os valores de LOD relatados anteriormente. As diferenças foram plotadas por grupo de ligação. Ver gráfico 05 a seguir.</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245346/77d1a318-1603-11e5-9737-38e92d0a8d4d.jpeg" alt="Gráfico 05 - Diferenças entre os LODs."></p>
+
+<p><strong>Comentários gerais</strong></p>
+
+<p>Com base nos gráficos apresentados é possível inferir que nenhum QTL foi mapeado com LOD superior ao limiar de 3,76. Vale lembrar que todos os gráficos foram plotados considerando os grupos de ligação como "cromossomos". </p>
+
+<p><strong>02) MAPEAMENTO POR INTERVALO COMPOSTO</strong></p>
+
+<p>No mapeamento por intervalo composto, os resultados serão apresentados na mesma lógica anterior entretanto, seguirão o padrão de análise e resposta do mapeamento por intervalo composto.</p>
+
+<p>a) Na primeira etapa, os valores de LOD <em>score</em> para a análise dos dados <em>MIMULUS</em> foram plotados com covariáveis e com uma covariável aditiva para os 14 grupos (representados como cromossomos). No gráfico a seguir, os valores com covariáveis estão plotados em azul e os com covariável aditiva estão plotados em vermelho.</p>
+
+<p>O limiar do LOD <em>score</em> foi estimado também a partir de análise de permutação (proposta por Haley-Knott) com alfa de 20% e 5%. Com alfa de 20%, foi obtido um LOD <em>score</em> de 3,45 e com alfa de 5%, um LOD <em>score</em> de 4,12. </p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245415/adee94d2-1604-11e5-8ab1-f1d726058229.jpeg" alt="Gráfico 06 - Valores de LOD score com covariáveis"></p>
+
+<p>Neste gráfico é possível perceber um intervalo acima do limiar no cromossomo (grupo) 12.</p>
+
+<p>b) Nesta etapa, um gráfico foi plotado com os valores de interação entre os valores de LOD <em>score</em> bem como, os respectivos intervalos nos grupos de ligação. Ver gráfico a seguir.</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245544/2fa2bc3c-1606-11e5-9b06-eb08633182db.jpeg" alt="Gráfico 07 - Interação dos valores LOD score."></p>
+
+<p>Neste gráfico é possível perceber um intervalo com valor superior ao limiar de interação de LOD <em>score</em>.</p>
+
+<p>c) Finalmente, são apresentados os resultados do mapeamento por intervalo composto para os dados de <em>Mimulus</em>. São apresentadas três opções de tamanho da janela. Os gráficos apresentados englobam ainda os resultados dos dois tipos de mapeamento (intervalo e intervalo composto). Em azul, os resultados do mapeamento por intervalo (padrão); em vermelho, os resultados por mapeamento por intervalo composto. Ver gráficos a seguir.</p>
+
+<p><img src="https://cloud.githubusercontent.com/assets/12286650/8245611/1144c374-1607-11e5-8c5a-3996d9cbbcfc.jpeg" alt="Gráfico 08 - Resultados dos mapeamentos"></p>
+
+<p><strong>Comentários gerais</strong></p>
+
+<p>Apesar dos dois mapeamentos apresentarem resultados similares, o mapeamento por intervalo composto apresenta resultados mais "refinados" para cada intervalo permitindo uma abordagem mais acurada do mapeamento e consequentemente, da identificação de regiões associadas as características quantitativas.</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/gcmmoreira/exercicio_aula10">Exercício Aula 10</a> is maintained by <a href="https://github.com/gcmmoreira">gcmmoreira</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
+
